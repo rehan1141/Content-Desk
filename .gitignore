@@ -1,0 +1,35 @@
+# Dependencies
+node_modules/
+.venv/
+venv/
+ENV/
+env/
+
+# Build and Distribution
+dist/
+build/
+target/
+*.egg-info/
+.pytest_cache/
+.coverage
+
+# Python Bytecode
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Environment Variables & Secrets
+.env
+.env.local
+*.pem
+*.key
+
+# IDE & OS Metadata
+.DS_Store
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Tauri Log Files
+*.log
