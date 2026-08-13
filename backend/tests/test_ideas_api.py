@@ -1,41 +1,4 @@
-import pytest
-from fastapi.testclient import TestClient
-from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
-from app.main import app
-from app.db.session import Base, get_db
-
-SQLALCHEMY_TEST_DATABASE_URL = "sqlite:///:memory:"
-
-engine = create_engine(
-    SQLALCHEMY_TEST_DATABASE_URL,
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
-
-
-def override_get_db():
-    db = TestingSessionLocal()
-    try:
-        yield db
-    finally:
-        db.close()
-
-
-app.dependency_overrides[get_db] = override_get_db
-client = TestClient(app)
-
-
-@pytest.fixture(autouse=True)
-def setup_database():
-    Base.metadata.create_all(bind=engine)
-    yield
-    Base.metadata.drop_all(bind=engine)
-
-
-def test_quick_capture_api():
+def test_quick_capture_api(client):
     """Test POST /api/v1/inbox/quick-capture creates raw thought."""
     response = client.post(
         "/api/v1/inbox/quick-capture",
@@ -48,7 +11,7 @@ def test_quick_capture_api():
     assert data["id"] is not None
 
 
-def test_quick_capture_validation_error():
+def test_quick_capture_validation_error(client):
     """Test quick capture rejects empty thoughts."""
     response = client.post(
         "/api/v1/inbox/quick-capture",
@@ -57,7 +20,7 @@ def test_quick_capture_validation_error():
     assert response.status_code == 400
 
 
-def test_list_inbox_thoughts_api():
+def test_list_inbox_thoughts_api(client):
     """Test GET /api/v1/inbox lists thoughts sitting in inbox."""
     client.post("/api/v1/inbox/quick-capture", json={"raw_thought": "Thought 1"})
     client.post("/api/v1/inbox/quick-capture", json={"raw_thought": "Thought 2"})
@@ -68,7 +31,7 @@ def test_list_inbox_thoughts_api():
     assert len(data) == 2
 
 
-def test_create_and_update_idea_api():
+def test_create_and_update_idea_api(client):
     """Test creating structured idea and updating status & development prompts."""
     create_res = client.post(
         "/api/v1/ideas",
@@ -97,7 +60,7 @@ def test_create_and_update_idea_api():
     assert updated_data["development_notes"] == "Use college study abroad experience as an example."
 
 
-def test_filter_ideas_by_status_api():
+def test_filter_ideas_by_status_api(client):
     """Test GET /api/v1/ideas?status=DEVELOPING filters correctly."""
     client.post("/api/v1/inbox/quick-capture", json={"raw_thought": "Raw thought 1"})
     create_res = client.post(
@@ -113,7 +76,7 @@ def test_filter_ideas_by_status_api():
     assert data["items"][0]["id"] == idea_id
 
 
-def test_delete_idea_api():
+def test_delete_idea_api(client):
     """Test DELETE /api/v1/ideas/{idea_id} permanently removes idea."""
     create_res = client.post("/api/v1/inbox/quick-capture", json={"raw_thought": "To be deleted"})
     idea_id = create_res.json()["id"]
